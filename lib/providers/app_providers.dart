@@ -248,13 +248,10 @@ final timerEngineProvider =
 /// computed purely from `sessionStartUtcMs`, `pauseStartUtcMs`, and `totalPausedMs`.
 class TimerEngine extends StateNotifier<TimerState> {
   TimerEngine({
-    required Ref ref,
-    required NativeTimerBridge bridge,
-    required ClockProvider nowUtcMs,
-  })  : _ref = ref,
-        _bridge = bridge,
-        _nowUtcMs = nowUtcMs,
-        super(
+    required this._ref,
+    required this._bridge,
+    required this._nowUtcMs,
+  }) : super(
           const TimerState(
             mode: FocusMode.pomodoro,
             phase: SessionPhase.focus,
