@@ -234,13 +234,11 @@ final statsSummaryProvider = Provider<FocusStatsSummary>((ref) {
 
 final timerEngineProvider =
     StateNotifierProvider<TimerEngine, TimerState>((ref) {
-  final engine = TimerEngine(
+  return TimerEngine(
     ref: ref,
     bridge: ref.watch(nativeTimerBridgeProvider),
     nowUtcMs: ref.watch(clockProvider),
   );
-  ref.onDispose(engine.dispose);
-  return engine;
 });
 
 /// Deterministic 5-state drift-free timer engine.
@@ -268,6 +266,7 @@ class TimerEngine extends StateNotifier<TimerState> {
 
   Timer? _uiTickTimer;
   StreamSubscription<String>? _nativeActionSub;
+  bool _completingPhase = false;
 
   AppSettings get _settings => _ref.read(settingsProvider);
 
@@ -626,7 +625,7 @@ class TimerEngine extends StateNotifier<TimerState> {
   /// Called on every UI tick AND immediately on `AppLifecycleState.resumed`
   /// to guarantee zero drift even after long Doze/background intervals.
   void syncFromClock() {
-    if (!state.isRunning) return;
+    if (!state.isRunning || _completingPhase) return;
     final now = _nowUtcMs();
     final elapsed = _computeElapsedMs(now);
 
@@ -647,59 +646,73 @@ class TimerEngine extends StateNotifier<TimerState> {
   }
 
   Future<void> _handleNaturalPhaseCompletion(int nowUtcMs) async {
-    _stopTicker();
-    _updateWakelock(false);
-    await _bridge.setAmbientSound(AmbientSoundType.off);
-    await _bridge.setDndActive(false);
-    await _bridge.stopForegroundSession();
+    if (_completingPhase || !mounted) return;
+    _completingPhase = true;
+    try {
+      _stopTicker();
+      _updateWakelock(false);
 
-    final settings = _settings;
-    await _bridge.triggerCompletionAlert(
-      sound: settings.completionSound,
-      vibration: settings.vibrationPattern,
-      title: '${state.apertureTitle} complete',
-    );
+      final settings = _settings;
+      final completionTitle = '${state.apertureTitle} complete';
+      final nextFlashNonce = settings.screenFlashAlert
+          ? state.screenFlashNonce + 1
+          : state.screenFlashNonce;
+      final plannedSec = state.plannedDurationMs ~/ 1000;
+      final completedMode = state.mode;
+      final completedPhase = state.phase;
+      final startedAt =
+          state.sessionStartUtcMs ?? (nowUtcMs - plannedSec * 1000);
 
-    final nextFlashNonce =
-        settings.screenFlashAlert ? state.screenFlashNonce + 1 : state.screenFlashNonce;
+      // Transition timer state immediately before async bridge/DB calls to prevent
+      // re-entrant completion ticks or stale UI state.
+      if (completedMode == FocusMode.pomodoro) {
+        state = state.copyWith(screenFlashNonce: nextFlashNonce);
+        if (!completedPhase.isBreak) {
+          _prepareNextPomodoroBreak(
+            autoStart: settings.autoStartBreaks,
+            completedFocus: true,
+          );
+        } else {
+          _prepareNextPomodoroFocus(autoStart: settings.autoStartFocus);
+        }
+      } else if (completedMode == FocusMode.focus && !completedPhase.isBreak) {
+        state = state.copyWith(screenFlashNonce: nextFlashNonce);
+        _resetToIdle(
+          message:
+              'Focus complete · ${StatsCalculator.formatDurationCompact(plannedSec)} logged',
+        );
+      } else {
+        // Earned break finished
+        state = state.copyWith(screenFlashNonce: nextFlashNonce);
+        _resetToIdle(message: 'Break complete · Ready to focus');
+      }
 
-    final plannedSec = state.plannedDurationMs ~/ 1000;
+      unawaited(_bridge.setAmbientSound(AmbientSoundType.off));
+      unawaited(_bridge.setDndActive(false));
+      unawaited(_bridge.stopForegroundSession());
+      unawaited(
+        _bridge.triggerCompletionAlert(
+          sound: settings.completionSound,
+          vibration: settings.vibrationPattern,
+          title: completionTitle,
+        ),
+      );
 
-    if (state.mode == FocusMode.pomodoro) {
-      if (!state.phase.isBreak) {
+      if ((completedMode == FocusMode.pomodoro ||
+              completedMode == FocusMode.focus) &&
+          !completedPhase.isBreak) {
         await _persistSessionIfEligible(
           elapsedSec: plannedSec,
           completed: true,
           endedAtUtcMs: nowUtcMs,
+          modeOverride: completedMode,
+          plannedSecOverride: plannedSec,
+          startedAtMsOverride: startedAt,
         );
-        state = state.copyWith(screenFlashNonce: nextFlashNonce);
-        _prepareNextPomodoroBreak(
-          autoStart: settings.autoStartBreaks,
-          completedFocus: true,
-        );
-      } else {
-        state = state.copyWith(screenFlashNonce: nextFlashNonce);
-        _prepareNextPomodoroFocus(autoStart: settings.autoStartFocus);
       }
-      return;
+    } finally {
+      _completingPhase = false;
     }
-
-    if (state.mode == FocusMode.focus && !state.phase.isBreak) {
-      await _persistSessionIfEligible(
-        elapsedSec: plannedSec,
-        completed: true,
-        endedAtUtcMs: nowUtcMs,
-      );
-      state = state.copyWith(screenFlashNonce: nextFlashNonce);
-      _resetToIdle(
-        message: 'Focus complete · ${StatsCalculator.formatDurationCompact(plannedSec)} logged',
-      );
-      return;
-    }
-
-    // Earned break finished
-    state = state.copyWith(screenFlashNonce: nextFlashNonce);
-    _resetToIdle(message: 'Break complete · Ready to focus');
   }
 
   void _prepareNextPomodoroBreak({
@@ -789,21 +802,29 @@ class TimerEngine extends StateNotifier<TimerState> {
     required int elapsedSec,
     required bool completed,
     required int endedAtUtcMs,
+    FocusMode? modeOverride,
+    int? plannedSecOverride,
+    int? startedAtMsOverride,
   }) async {
-    if (elapsedSec < AppConstants.minLoggableSeconds) {
+    if (!mounted || elapsedSec < AppConstants.minLoggableSeconds) {
       return false;
     }
 
-    final startedAt = state.sessionStartUtcMs ?? (endedAtUtcMs - elapsedSec * 1000);
+    final mode = modeOverride ?? state.mode;
+    final startedAt = startedAtMsOverride ??
+        state.sessionStartUtcMs ??
+        (endedAtUtcMs - elapsedSec * 1000);
+    final plannedSec = plannedSecOverride ??
+        (mode == FocusMode.endless
+            ? elapsedSec
+            : state.plannedDurationMs ~/ 1000);
     final session = FocusSession(
       id: _uuid.v4(),
-      mode: state.mode,
+      mode: mode,
       labelId: _settings.selectedLabelId,
       startedAtMs: startedAt,
       endedAtMs: endedAtUtcMs,
-      plannedSec: state.mode == FocusMode.endless
-          ? elapsedSec
-          : state.plannedDurationMs ~/ 1000,
+      plannedSec: plannedSec,
       actualSec: elapsedSec,
       completed: completed,
     );
