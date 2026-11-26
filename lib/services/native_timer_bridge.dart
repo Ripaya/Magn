@@ -90,7 +90,9 @@ class NativeTimerBridge {
   }) async {
     if (!_isAndroid) {
       if (vibration != VibrationPattern.off) {
-        await HapticFeedback.heavyImpact();
+        try {
+          await HapticFeedback.heavyImpact();
+        } catch (_) {}
       }
       return;
     }
@@ -101,7 +103,9 @@ class NativeTimerBridge {
         'title': title,
       });
     } catch (_) {
-      await HapticFeedback.heavyImpact();
+      try {
+        await HapticFeedback.heavyImpact();
+      } catch (_) {}
     }
   }
 

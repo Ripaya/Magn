@@ -51,6 +51,8 @@ class _InMemoryDatabaseService extends DatabaseService {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('Drift-free TimerEngine', () {
     late int fakeClockUtcMs;
     late ProviderContainer container;

@@ -255,7 +255,7 @@ class TimerEngine extends StateNotifier<TimerState> {
         _bridge = bridge,
         _nowUtcMs = nowUtcMs,
         super(
-          TimerState(
+          const TimerState(
             mode: FocusMode.pomodoro,
             phase: SessionPhase.focus,
             status: TimerStatus.idle,
@@ -831,11 +831,9 @@ class TimerEngine extends StateNotifier<TimerState> {
 
   void _updateWakelock(bool enable) {
     try {
-      if (enable) {
-        WakelockPlus.enable();
-      } else {
-        WakelockPlus.disable();
-      }
+      final Future<void> op =
+          enable ? WakelockPlus.enable() : WakelockPlus.disable();
+      unawaited(op.catchError((_) {}));
     } catch (_) {}
   }
 

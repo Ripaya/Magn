@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -57,7 +57,7 @@ Future<void> showManualSessionDialog(
                   Text('Label', style: Theme.of(ctx).textTheme.labelMedium),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: labels.any((l) => l.id == selectedLabelId)
+                    initialValue: labels.any((l) => l.id == selectedLabelId)
                         ? selectedLabelId
                         : (labels.isNotEmpty ? labels.first.id : null),
                     items: labels

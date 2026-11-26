@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Design tokens inspired by physical rotating-aperture desk clocks:
@@ -145,10 +145,10 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: bg,
-      colorScheme: ColorScheme.dark(
+      colorScheme: const ColorScheme.dark(
         primary: MagnColors.darkInkPrimary,
         onPrimary: Colors.black,
-        secondary: const Color(0xFF3B82F6),
+        secondary: Color(0xFF3B82F6),
         onSecondary: Colors.white,
         surface: MagnColors.darkSurfaceCard,
         onSurface: MagnColors.darkInkPrimary,

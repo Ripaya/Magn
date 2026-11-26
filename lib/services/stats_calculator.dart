@@ -108,7 +108,7 @@ class StatsCalculator {
       ..sort((a, b) => a.date.compareTo(b.date));
 
     final labelById = {for (final l in labels) l.id: l};
-    final fallbackLabel = SessionLabel(
+    const fallbackLabel = SessionLabel(
       id: 'label_general',
       name: 'General',
       colorHex: '#475569',
