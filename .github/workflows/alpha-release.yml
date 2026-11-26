@@ -1,0 +1,177 @@
+name: Alpha Check & Release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: alpha-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Run unit tests
+        run: flutter test
+
+  build_and_release_alpha:
+    name: Build & Release Alpha
+    needs: check
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Ensure Android Gradle wrapper exists
+        run: |
+          if [ ! -f android/gradlew ]; then
+            TMP_DIR=$(mktemp -d)
+            flutter create --platforms=android --org magn --project-name magn "$TMP_DIR/host"
+            mkdir -p android/gradle/wrapper
+            cp "$TMP_DIR/host/android/gradlew" android/gradlew
+            cp "$TMP_DIR/host/android/gradlew.bat" android/gradlew.bat
+            cp -r "$TMP_DIR/host/android/gradle/wrapper/." android/gradle/wrapper/
+            chmod +x android/gradlew
+            rm -rf "$TMP_DIR"
+          fi
+          echo "flutter.sdk=$(dirname "$(dirname "$(which flutter)")")" > android/local.properties
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Calculate next alpha version and build number
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_BODY=$(gh release view alpha --json body --jq '.body' 2>/dev/null || echo "")
+          PREV_MARKER=$(echo "$RELEASE_BODY" | grep -oE 'magn-alpha-version:0\.1\.[0-9]+-a\+[0-9]+' | head -n1 || true)
+
+          if [ -n "$PREV_MARKER" ]; then
+            PREV_PATCH=$(echo "$PREV_MARKER" | sed -E 's/magn-alpha-version:0\.1\.([0-9]+)-a\+([0-9]+)/\1/')
+            PREV_BUILD=$(echo "$PREV_MARKER" | sed -E 's/magn-alpha-version:0\.1\.([0-9]+)-a\+([0-9]+)/\2/')
+            NEXT_PATCH=$((PREV_PATCH + 1))
+            NEXT_BUILD=$((PREV_BUILD + 1))
+            VERSION_NAME="0.1.${NEXT_PATCH}-a"
+            BUILD_NUMBER="$NEXT_BUILD"
+          else
+            VERSION_NAME="0.1.0-a"
+            BUILD_NUMBER="1"
+          fi
+
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "Resolved Alpha Version: ${VERSION_NAME}+${BUILD_NUMBER}"
+
+      - name: Configure consistent release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
+            echo "::error::Missing Android signing secrets! Configure ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD in GitHub repository secrets so every alpha build uses the same signing certificate."
+            exit 1
+          fi
+
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/magn-alpha.jks
+          cat > android/key.properties <<EOF
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=magn-alpha.jks
+          EOF
+
+      - name: Build signed alpha APK
+        run: |
+          flutter build apk --release \
+            --build-name="${{ steps.version.outputs.version_name }}" \
+            --build-number="${{ steps.version.outputs.build_number }}"
+
+          APK_OUT="build/app/outputs/flutter-apk/magn-${{ steps.version.outputs.version_name }}+${{ steps.version.outputs.build_number }}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$APK_OUT"
+          echo "apk_path=$APK_OUT" >> "$GITHUB_ENV"
+
+      - name: Clean up signing files from runner
+        if: always()
+        run: rm -f android/app/magn-alpha.jks android/key.properties
+
+      - name: Release under rolling tag alpha
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION_NAME="${{ steps.version.outputs.version_name }}"
+          BUILD_NUMBER="${{ steps.version.outputs.build_number }}"
+          RELEASE_TITLE="Magn Alpha ${VERSION_NAME} (Build ${BUILD_NUMBER})"
+          cat > /tmp/release_notes.md <<EOF
+          Automated Alpha release for **Magn** (\`magn.ion\`).
+
+          - **Version:** \`${VERSION_NAME}\`
+          - **Build Number:** \`${BUILD_NUMBER}\`
+          - **Commit:** \`${GITHUB_SHA}\`
+
+          <!-- magn-alpha-version:${VERSION_NAME}+${BUILD_NUMBER} -->
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f alpha "$GITHUB_SHA"
+          git push -f origin alpha
+
+          if gh release view alpha >/dev/null 2>&1; then
+            OLD_ASSETS=$(gh release view alpha --json assets --jq '.assets[].name' || true)
+            for ASSET in $OLD_ASSETS; do
+              gh release delete-asset alpha "$ASSET" -y || true
+            done
+            gh release edit alpha \
+              --title "$RELEASE_TITLE" \
+              --notes-file /tmp/release_notes.md \
+              --prerelease
+            gh release upload alpha "$APK_PATH" --clobber
+          else
+            gh release create alpha "$APK_PATH" \
+              --title "$RELEASE_TITLE" \
+              --notes-file /tmp/release_notes.md \
+              --prerelease
+          fi

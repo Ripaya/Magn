@@ -1,7 +1,7 @@
 name: magn
 description: Magn — A minimalist Kinetic Focus Dial & Pomodoro app for Android built around a 3-layer mechanical dial.
 publish_to: 'none'
-version: 1.0.0+1
+version: 0.1.0-a+1
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
