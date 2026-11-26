@@ -2,14 +2,16 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../models/focus_mode.dart';
 import '../../providers/app_providers.dart';
 import 'hold_to_skip_button.dart';
 
-/// Minimalist 3-action Bottom Control Dock:
-/// - Left: Options button
-/// - Center: Large primary Play / Pause morphing pill/circle button
-/// - Right: 0.8s Hold-to-Skip / Stop button
+/// Minimal Editorial 3-action Bottom Control Dock (flat panels, 10-12px corners,
+/// crisp 1px/1.5px borders, zero drop shadows):
+/// - Left: Options panel button
+/// - Center: Deep Mineral Pine primary Play / Pause panel button
+/// - Right: 0.8s Hold-to-Skip / Stop panel button with Cinnabar Red trigger ring
 class ControlDock extends ConsumerStatefulWidget {
   const ControlDock({
     super.key,
@@ -31,7 +33,7 @@ class _ControlDockState extends ConsumerState<ControlDock>
     super.initState();
     _playPauseIconController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 260),
+      duration: const Duration(milliseconds: 240),
       value: ref.read(timerEngineProvider).isRunning ? 1.0 : 0.0,
     );
   }
@@ -69,16 +71,12 @@ class _ControlDockState extends ConsumerState<ControlDock>
         ? 'Skip Phase'
         : 'End Session';
 
-    final secondarySurface = isDark
-        ? const Color(0xFF17191E)
-        : Colors.white.withValues(alpha: 0.86);
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // Left — Options Button
+          // Left — Options Panel Button
           Tooltip(
             message: 'Options & Presets',
             child: InkWell(
@@ -86,33 +84,24 @@ class _ControlDockState extends ConsumerState<ControlDock>
                 HapticFeedback.selectionClick();
                 widget.onOpenOptions();
               },
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(AppTheme.panelRadius),
               child: Container(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
-                  color: secondarySurface,
-                  shape: BoxShape.circle,
-                  boxShadow: isDark
-                      ? null
-                      : [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                decoration: AppTheme.panelDecoration(
+                  context,
+                  radius: AppTheme.panelRadius,
                 ),
                 child: Icon(
                   Icons.tune_rounded,
-                  size: 21,
+                  size: 20,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
             ),
           ),
 
-          // Center — Primary Play / Pause Morphing Action
+          // Center — Deep Mineral Pine Primary Play / Pause Panel
           GestureDetector(
             onTap: () {
               if (pauseLocked) {
@@ -132,41 +121,42 @@ class _ControlDockState extends ConsumerState<ControlDock>
               ref.read(timerEngineProvider.notifier).togglePlayPause();
             },
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 260),
+              duration: const Duration(milliseconds: 240),
               curve: Curves.easeOutCubic,
-              width: timerState.isRunning ? 84 : 112,
-              height: 62,
+              width: timerState.isRunning ? 92 : 124,
+              height: 54,
               decoration: BoxDecoration(
                 color: pauseLocked
-                    ? theme.colorScheme.onSurface.withValues(alpha: 0.25)
-                    : theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(32),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.16),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+                    ? theme.colorScheme.surface
+                    : MagnColors.deepMineralPine,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: pauseLocked
+                      ? MagnColors.cinnabarRed
+                      : (isDark
+                          ? MagnColors.warmSilkCream.withValues(alpha: 0.35)
+                          : MagnColors.inkOak.withValues(alpha: 0.25)),
+                  width: 1.5,
+                ),
               ),
               child: Center(
                 child: pauseLocked
-                    ? Icon(
+                    ? const Icon(
                         Icons.lock_rounded,
-                        size: 24,
-                        color: theme.colorScheme.onPrimary,
+                        size: 22,
+                        color: MagnColors.cinnabarRed,
                       )
                     : AnimatedIcon(
                         icon: AnimatedIcons.play_pause,
                         progress: _playPauseIconController,
-                        size: 30,
-                        color: theme.colorScheme.onPrimary,
+                        size: 28,
+                        color: MagnColors.warmSilkCream,
                       ),
               ),
             ),
           ),
 
-          // Right — Hold-to-Skip / Stop Button (0.8s circular fill)
+          // Right — Hold-to-Skip / Stop Panel Button (0.8s Cinnabar Red progress border)
           HoldToSkipButton(
             enabled: timerState.isActive,
             icon: skipIcon,

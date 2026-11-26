@@ -1,11 +1,11 @@
-import 'dart:math' as math;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_theme.dart';
 
-/// Right-side dock button requiring a 0.8-second press-and-hold with a circular
-/// progress fill ring around the perimeter to prevent accidental session resets.
+/// Right-side modular panel button requiring a 0.8-second press-and-hold with a
+/// Cinnabar Red rectangular perimeter progress stroke to prevent accidental resets.
 class HoldToSkipButton extends StatefulWidget {
   const HoldToSkipButton({
     super.key,
@@ -67,13 +67,9 @@ class _HoldToSkipButtonState extends State<HoldToSkipButton>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final surfaceColor = isDark
-        ? const Color(0xFF17191E)
-        : Colors.white.withValues(alpha: 0.86);
     final iconColor = widget.enabled
         ? theme.colorScheme.onSurface
-        : theme.colorScheme.onSurface.withValues(alpha: 0.28);
+        : theme.colorScheme.onSurface.withValues(alpha: 0.30);
 
     return Tooltip(
       message: widget.enabled ? '${widget.tooltip} (Hold 0.8s)' : widget.tooltip,
@@ -84,35 +80,28 @@ class _HoldToSkipButtonState extends State<HoldToSkipButton>
         child: AnimatedBuilder(
           animation: _holdController,
           builder: (context, child) {
-            final scale = 1.0 - (_holdController.value * 0.06);
+            final scale = 1.0 - (_holdController.value * 0.04);
             return Transform.scale(
               scale: scale,
               child: SizedBox(
-                width: 58,
-                height: 58,
+                width: 56,
+                height: 56,
                 child: CustomPaint(
-                  painter: _HoldRingPainter(
+                  painter: _HoldPanelRingPainter(
                     progress: _holdController.value,
-                    ringColor: theme.colorScheme.onSurface,
-                    trackColor:
-                        theme.colorScheme.onSurface.withValues(alpha: 0.09),
+                    ringColor: MagnColors.cinnabarRed,
+                    trackColor: MagnColors.borderColor(context),
                   ),
                   child: Center(
                     child: Container(
                       width: 48,
                       height: 48,
-                      decoration: BoxDecoration(
-                        color: surfaceColor,
-                        shape: BoxShape.circle,
-                        boxShadow: isDark
-                            ? null
-                            : [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.06),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
+                      decoration: AppTheme.panelDecoration(
+                        context,
+                        radius: AppTheme.panelRadius,
+                        borderColor: _holdController.value > 0.01
+                            ? MagnColors.cinnabarRed.withValues(alpha: 0.65)
+                            : null,
                       ),
                       child: Icon(widget.icon, size: 22, color: iconColor),
                     ),
@@ -127,8 +116,8 @@ class _HoldToSkipButtonState extends State<HoldToSkipButton>
   }
 }
 
-class _HoldRingPainter extends CustomPainter {
-  const _HoldRingPainter({
+class _HoldPanelRingPainter extends CustomPainter {
+  const _HoldPanelRingPainter({
     required this.progress,
     required this.ringColor,
     required this.trackColor,
@@ -140,34 +129,36 @@ class _HoldRingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width / 2) - 2.0;
-
     if (progress <= 0.001) return;
 
-    canvas.drawCircle(
-      center,
-      radius,
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(2, 2, size.width - 4, size.height - 4),
+      const Radius.circular(11),
+    );
+
+    canvas.drawRRect(
+      rrect,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.6
+        ..strokeWidth = 1.5
         ..color = trackColor,
     );
 
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      progress * 2 * math.pi,
-      false,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.8
-        ..strokeCap = StrokeCap.round
-        ..color = ringColor,
-    );
+    final path = Path()..addRRect(rrect);
+    for (final metric in path.computeMetrics()) {
+      final extract = metric.extractPath(0, metric.length * progress.clamp(0.0, 1.0));
+      canvas.drawPath(
+        extract,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..strokeCap = StrokeCap.square
+          ..color = ringColor,
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _HoldRingPainter oldDelegate) =>
+  bool shouldRepaint(covariant _HoldPanelRingPainter oldDelegate) =>
       oldDelegate.progress != progress || oldDelegate.ringColor != ringColor;
 }

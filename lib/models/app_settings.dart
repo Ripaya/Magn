@@ -1,7 +1,7 @@
 enum AppThemePreference {
   system('system', 'System'),
   light('light', 'Light'),
-  oledBlack('oled_black', 'OLED Black');
+  oledBlack('oled_black', 'Ink Dark');
 
   const AppThemePreference(this.key, this.label);
   final String key;

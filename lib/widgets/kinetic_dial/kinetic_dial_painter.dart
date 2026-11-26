@@ -4,12 +4,12 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/focus_mode.dart';
 
-/// CustomPainter rendering the 3-Layer Mechanical Kinetic Focus Dial:
-/// - Layer 1 (Back): Rotating luminous Gradient Under-Disk visible through the cutout
-/// - Layer 2 (Middle): Tactile matte ceramic/OLED Top Mask Disk with recessed inner-shadow
-///   pill aperture and contrast-guarded mode/time display
-/// - Layer 3 (Front): Sculpted Dual Hand Assembly (Primary Live Hand with cast shadow +
-///   Ghost Benchmark Marker + precision pivot cap)
+/// CustomPainter rendering the 3-Layer Mechanical Kinetic Focus Dial
+/// styled with Minimal Editorial & Clean Webtoon Panel precision:
+/// - Flat contrast with crisp 1px / 1.5px borders (zero blurry drop shadows)
+/// - Layer 1 (Back): Rotating mineral-toned under-disk visible through a 10px-radius aperture
+/// - Layer 2 (Middle): Flat Soft Parchment / Ink Oak face with architectural minute ticks
+/// - Layer 3 (Front): Sharp baton hand with Cinnabar Red live needle tip & ghost marker
 class KineticDialPainter extends CustomPainter {
   KineticDialPainter({
     required this.isDark,
@@ -69,17 +69,17 @@ class KineticDialPainter extends CustomPainter {
     }
   }
 
-  /// Geometry helper for the recessed horizontal pill cutout slot (in local coordinates).
+  /// Geometry helper for the recessed rectangular aperture window (10px rounded corners).
   static RRect buildApertureSlotRect(Offset center, double radius) {
-    final slotWidth = radius * 1.12;
-    final slotHeight = radius * 0.36;
-    final slotCenter = Offset(center.dx, center.dy - radius * 0.37);
+    final slotWidth = radius * 1.14;
+    final slotHeight = radius * 0.38;
+    final slotCenter = Offset(center.dx, center.dy - radius * 0.36);
     final rect = Rect.fromCenter(
       center: slotCenter,
       width: slotWidth,
       height: slotHeight,
     );
-    return RRect.fromRectAndRadius(rect, Radius.circular(slotHeight / 2));
+    return RRect.fromRectAndRadius(rect, const Radius.circular(10.0));
   }
 
   @override
@@ -89,24 +89,20 @@ class KineticDialPainter extends CustomPainter {
 
     // ── Outer Lap Indicator Ring (Endless Flow >= 60m) ────────────────────────
     if (mode == FocusMode.endless && endlessLaps > 0) {
-      final lapRingRadius = radius + 10;
+      final lapRingRadius = radius + 9;
       final trackPaint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
-        ..color = (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08);
+        ..strokeWidth = 1.5
+        ..color = isDark ? MagnColors.darkDivider : MagnColors.lightDivider;
       canvas.drawCircle(center, lapRingRadius, trackPaint);
 
       final lapArcPaint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0
-        ..strokeCap = StrokeCap.round
-        ..shader = SweepGradient(
-          startAngle: -math.pi / 2,
-          endAngle: 1.5 * math.pi,
-          colors: hasSurpassedRecord
-              ? const [Color(0xFFF59E0B), Color(0xFFFDE047)]
-              : const [Color(0xFF7C3AED), Color(0xFFA855F7)],
-        ).createShader(Rect.fromCircle(center: center, radius: lapRingRadius));
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.butt
+        ..color = hasSurpassedRecord
+            ? MagnColors.cinnabarRed
+            : MagnColors.deepMineralPine;
 
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: lapRingRadius),
@@ -117,18 +113,14 @@ class KineticDialPainter extends CustomPainter {
       );
     }
 
-    // ── Physical Architectural Cast Shadow Beneath Disk ───────────────────────
-    _drawDiskShadow(canvas, center, radius);
-
-    // ── LAYER 2 BASE: Matte Ceramic / OLED Top Mask Disk ──────────────────────
+    // ── LAYER 2 BASE: Flat Architectural Mask Disk (no blurry shadow) ─────────
     canvas.save();
-    // Apply damped spring rotation to the mask disk when switching modes
     canvas.translate(center.dx, center.dy);
     canvas.rotate(maskSpringOffsetRad);
     canvas.translate(-center.dx, -center.dy);
 
-    _drawMatteDiskBody(canvas, center, radius);
-    _drawSubtlePerimeterTicks(canvas, center, radius);
+    _drawFlatDiskBody(canvas, center, radius);
+    _drawPrecisionPerimeterTicks(canvas, center, radius);
 
     // ── LAYER 1 (THROUGH APERTURE): Rotating Gradient Under-Disk ──────────────
     final slotRRect = buildApertureSlotRect(center, radius);
@@ -142,83 +134,57 @@ class KineticDialPainter extends CustomPainter {
     // ── Ghost Benchmark Notch on Outer Rim ────────────────────────────────────
     _drawGhostRimNotch(canvas, center, radius);
 
-    // ── LAYER 3: Dual Hand Assembly (Ghost Marker + Sculpted Primary Hand) ────
+    // ── LAYER 3: Dual Hand Assembly (Ghost Marker + Sharp Primary Needle) ─────
     _drawGhostHand(canvas, center, radius);
     _drawPrimaryLiveHand(canvas, center, radius);
     _drawCenterPivotCap(canvas, center, radius);
   }
 
-  void _drawDiskShadow(Canvas canvas, Offset center, double radius) {
-    if (isDark) {
-      // Subtle ambient halo on pure OLED black so the circular matte face breathes
-      final glowPaint = Paint()
-        ..color = _currentGradientColors()[2].withValues(alpha: 0.14)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 28);
-      canvas.drawCircle(center.translate(0, 6), radius * 0.98, glowPaint);
-    } else {
-      // Gallery wall directional soft cast shadow matching the reference clock photo
-      final deepShadow = Paint()
-        ..color = const Color(0xFF1A202C).withValues(alpha: 0.16)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 26);
-      canvas.drawCircle(center.translate(6, 18), radius * 0.96, deepShadow);
+  void _drawFlatDiskBody(Canvas canvas, Offset center, double radius) {
+    final surfaceColor =
+        isDark ? MagnColors.darkDiskSurface : MagnColors.lightDiskSurface;
+    canvas.drawCircle(center, radius, Paint()..color = surfaceColor);
 
-      final contactShadow = Paint()
-        ..color = const Color(0xFF0F172A).withValues(alpha: 0.09)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-      canvas.drawCircle(center.translate(2, 6), radius * 0.99, contactShadow);
-    }
-  }
+    // Crisp 1px panel border (1.5px Deep Mineral Pine / Cream when active or dragging)
+    final isActive = isDraggingRim || isRunning;
+    final borderColor = isActive
+        ? (isDark
+            ? MagnColors.warmSilkCream.withValues(alpha: 0.72)
+            : MagnColors.deepMineralPine)
+        : (isDark ? MagnColors.darkDiskRim : MagnColors.lightDiskRim);
 
-  void _drawMatteDiskBody(Canvas canvas, Offset center, double radius) {
-    final diskRect = Rect.fromCircle(center: center, radius: radius);
-
-    // Subtle directional lighting across the matte face for tactile depth
-    final faceGradient = RadialGradient(
-      center: const Alignment(-0.35, -0.35),
-      radius: 1.3,
-      colors: isDark
-          ? const [Color(0xFF1A1C21), Color(0xFF111216), Color(0xFF0B0C0E)]
-          : const [Color(0xFFFFFFFF), Color(0xFFF6F7F9), Color(0xFFEAECEF)],
-      stops: const [0.0, 0.65, 1.0],
-    );
-
-    final diskPaint = Paint()..shader = faceGradient.createShader(diskRect);
-    canvas.drawCircle(center, radius, diskPaint);
-
-    // Tactile bevel edge ring
     final rimStroke = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = isDraggingRim ? 2.2 : 1.3
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: isDark
-            ? [
-                Colors.white.withValues(alpha: isDraggingRim ? 0.30 : 0.12),
-                Colors.white.withValues(alpha: 0.03),
-              ]
-            : [
-                Colors.white.withValues(alpha: 0.95),
-                const Color(0xFFCBD2DC).withValues(alpha: 0.85),
-              ],
-      ).createShader(diskRect);
-    canvas.drawCircle(center, radius - 0.8, rimStroke);
+      ..strokeWidth = isActive ? 1.5 : 1.0
+      ..color = borderColor;
+    canvas.drawCircle(center, radius - 0.75, rimStroke);
+
+    // Subtle inner editorial registration hairline
+    final innerRing = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0
+      ..color = (isDark ? MagnColors.warmSilkCream : MagnColors.inkOak)
+          .withValues(alpha: 0.07);
+    canvas.drawCircle(center, radius - 16.0, innerRing);
   }
 
-  void _drawSubtlePerimeterTicks(Canvas canvas, Offset center, double radius) {
-    final baseAlpha = isDraggingRim ? 0.36 : 0.14;
-    final majorAlpha = isDraggingRim ? 0.62 : 0.28;
-    final tickColor = isDark ? Colors.white : MagnColors.lightInkPrimary;
+  void _drawPrecisionPerimeterTicks(
+    Canvas canvas,
+    Offset center,
+    double radius,
+  ) {
+    final baseAlpha = isDraggingRim ? 0.42 : 0.16;
+    final majorAlpha = isDraggingRim ? 0.85 : 0.45;
+    final tickColor =
+        isDark ? MagnColors.warmSilkCream : MagnColors.inkOak;
 
     for (var i = 0; i < 60; i++) {
       final isMajor = i % 5 == 0;
-      // Keep the ultra-clean aesthetic when not dragging: only 12 major markers at rest,
-      // full 60-minute precision ticks fade in while dragging the outer rim!
       if (!isMajor && !isDraggingRim) continue;
 
       final angle = (i / 60.0) * 2 * math.pi - math.pi / 2;
-      final outerR = radius - 8.0;
-      final innerR = outerR - (isMajor ? 7.5 : 4.0);
+      final outerR = radius - 6.0;
+      final innerR = outerR - (isMajor ? 8.0 : 4.0);
 
       final p1 = Offset(
         center.dx + math.cos(angle) * innerR,
@@ -229,10 +195,23 @@ class KineticDialPainter extends CustomPainter {
         center.dy + math.sin(angle) * outerR,
       );
 
+      final isDatum = i == 0;
+      final Color lineColor;
+      if (isDatum && isRunning) {
+        lineColor = MagnColors.cinnabarRed;
+      } else if (isDatum) {
+        lineColor = isDark
+            ? MagnColors.warmSilkCream
+            : MagnColors.deepMineralPine;
+      } else {
+        lineColor =
+            tickColor.withValues(alpha: isMajor ? majorAlpha : baseAlpha);
+      }
+
       final paint = Paint()
-        ..color = tickColor.withValues(alpha: isMajor ? majorAlpha : baseAlpha)
-        ..strokeWidth = isMajor ? 1.5 : 1.0
-        ..strokeCap = StrokeCap.round;
+        ..color = lineColor
+        ..strokeWidth = isDatum ? 2.0 : (isMajor ? 1.4 : 1.0)
+        ..strokeCap = StrokeCap.square;
 
       canvas.drawLine(p1, p2, paint);
     }
@@ -247,7 +226,7 @@ class KineticDialPainter extends CustomPainter {
     canvas.save();
     canvas.clipRRect(slotRRect);
 
-    // Layer 1: Full-diameter rotating gradient disk sitting physically beneath the mask
+    // Layer 1: Full-diameter rotating tonal wheel sitting beneath the mask
     canvas.save();
     canvas.translate(center.dx, center.dy);
     canvas.rotate(underDiskAngleRad);
@@ -256,7 +235,6 @@ class KineticDialPainter extends CustomPainter {
     final underDiskRect = Rect.fromCircle(center: center, radius: radius * 1.05);
     final colors = _currentGradientColors();
 
-    // Rich dual-blend gradient: Sweep + Linear depth simulating the illuminated pigment wheel
     final sweepPaint = Paint()
       ..shader = SweepGradient(
         colors: colors,
@@ -264,63 +242,39 @@ class KineticDialPainter extends CustomPainter {
       ).createShader(underDiskRect);
     canvas.drawCircle(center, radius * 1.05, sweepPaint);
 
-    final luminousSheen = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Colors.white.withValues(alpha: 0.16),
-          Colors.transparent,
-          Colors.black.withValues(alpha: 0.22),
-        ],
-      ).createShader(underDiskRect);
-    canvas.drawCircle(center, radius * 1.05, luminousSheen);
+    canvas.restore();
+
+    // Flat editorial scrim for guaranteed crisp contrast without blur
+    canvas.drawRRect(
+      slotRRect,
+      Paint()..color = MagnColors.deepestInk.withValues(alpha: 0.28),
+    );
 
     canvas.restore();
 
-    // Inner recessed bevel shadow along top/left wall of the cutout slot
-    // (gives the unmistakable 3D milled-aperture depth from the reference image!)
-    final innerShadowPaint = Paint()
+    // Crisp 1.5px solid editorial frame around cutout aperture
+    final framePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 7.0
-      ..color = Colors.black.withValues(alpha: isDark ? 0.55 : 0.34)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.5);
-    canvas.drawRRect(slotRRect.shift(const Offset(0, 2.2)), innerShadowPaint);
-
-    // Subtle crisp dark scrim pill behind typography for WCAG 4.5:1 contrast guarantee
-    final scrimRect = slotRRect.deflate(3.0);
-    final scrimPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.28);
-    canvas.drawRRect(scrimRect, scrimPaint);
-
-    canvas.restore();
-
-    // Crisp micro-chamfer rim outline around the cutout aperture
-    final chamferPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
+      ..strokeWidth = 1.5
       ..color = isDark
-          ? Colors.white.withValues(alpha: 0.10)
-          : Colors.black.withValues(alpha: 0.08);
-    canvas.drawRRect(slotRRect, chamferPaint);
+          ? MagnColors.warmSilkCream.withValues(alpha: 0.28)
+          : MagnColors.inkOak.withValues(alpha: 0.40);
+    canvas.drawRRect(slotRRect, framePaint);
   }
 
   void _drawApertureReadout(Canvas canvas, RRect slotRRect) {
     final slotCenter = slotRRect.center;
     final showDigits = digitsOpacity > 0.02;
 
-    // Mode / Phase title inside cutout window
+    // Heading in Plus Jakarta Sans (-0.02em tracking)
+    final titleFontSize = showDigits ? 10.5 : 12.0;
     final titleSpan = TextSpan(
       text: apertureTitle,
-      style: TextStyle(
-        fontSize: showDigits ? 10.5 : 12.0,
+      style: AppTheme.headingStyle(
+        fontSize: titleFontSize,
         fontWeight: FontWeight.w700,
-        letterSpacing: 2.1,
-        color: Colors.white.withValues(alpha: 0.94),
-        shadows: const [
-          Shadow(color: Color(0x66000000), blurRadius: 4, offset: Offset(0, 1)),
-        ],
-      ),
+        color: MagnColors.warmSilkCream.withValues(alpha: 0.92),
+      ).copyWith(letterSpacing: 1.8),
     );
     final titlePainter = TextPainter(
       text: titleSpan,
@@ -339,18 +293,16 @@ class KineticDialPainter extends CustomPainter {
       return;
     }
 
-    // Crisp monospace MM:SS readout directly beneath mode name inside slot
+    // Numbers & timers in JetBrains Mono with tabular-nums
     final timeSpan = TextSpan(
       text: formattedTime,
       style: AppTheme.monoStyle(
         fontSize: 21.0,
         fontWeight: FontWeight.w600,
-        letterSpacing: 1.5,
-        color: Colors.white.withValues(alpha: digitsOpacity.clamp(0.0, 1.0)),
-      ).copyWith(
-        shadows: const [
-          Shadow(color: Color(0x70000000), blurRadius: 5, offset: Offset(0, 1)),
-        ],
+        letterSpacing: 1.2,
+        color: MagnColors.warmSilkCream.withValues(
+          alpha: digitsOpacity.clamp(0.0, 1.0),
+        ),
       ),
     );
     final timePainter = TextPainter(
@@ -383,17 +335,18 @@ class KineticDialPainter extends CustomPainter {
       center.dy + math.sin(angle) * (radius - 11.5),
     );
     final notchColor = mode == FocusMode.endless && hasSurpassedRecord
-        ? const Color(0xFFF59E0B)
+        ? MagnColors.cinnabarRed
         : (isDark
-            ? Colors.white.withValues(alpha: 0.45)
-            : MagnColors.lightInkPrimary.withValues(alpha: 0.35));
+            ? MagnColors.warmSilkCream.withValues(alpha: 0.45)
+            : MagnColors.inkOak.withValues(alpha: 0.40));
 
-    canvas.drawCircle(notchCenter, 3.0, Paint()..color = notchColor);
+    canvas.drawRect(
+      Rect.fromCenter(center: notchCenter, width: 4.5, height: 4.5),
+      Paint()..color = notchColor,
+    );
   }
 
   void _drawGhostHand(Canvas canvas, Offset center, double radius) {
-    // Only draw distinct ghost hand when it differs meaningfully from the live hand
-    // or during active Endless / Focus benchmark tracking.
     if (isIdle && mode != FocusMode.endless) return;
 
     canvas.save();
@@ -402,10 +355,10 @@ class KineticDialPainter extends CustomPainter {
 
     final ghostLength = radius * 0.78;
     final ghostPaint = Paint()
-      ..color = (isDark ? Colors.white : MagnColors.lightInkPrimary)
-          .withValues(alpha: isDark ? 0.22 : 0.16)
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round;
+      ..color = (isDark ? MagnColors.warmSilkCream : MagnColors.inkOak)
+          .withValues(alpha: isDark ? 0.25 : 0.20)
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.square;
 
     canvas.drawLine(Offset.zero, Offset(0, -ghostLength), ghostPaint);
     canvas.restore();
@@ -413,8 +366,8 @@ class KineticDialPainter extends CustomPainter {
 
   void _drawPrimaryLiveHand(Canvas canvas, Offset center, double radius) {
     final handLength = radius * 0.80;
-    final handWidth = radius * 0.068;
-    final tailLength = radius * 0.09;
+    final handWidth = radius * 0.056;
+    final tailLength = radius * 0.11;
 
     final handRRect = RRect.fromRectAndRadius(
       Rect.fromLTRB(
@@ -423,61 +376,42 @@ class KineticDialPainter extends CustomPainter {
         handWidth / 2,
         tailLength,
       ),
-      Radius.circular(handWidth / 2),
+      const Radius.circular(2.0),
     );
 
-    // 1. Directional cast shadow on the matte disk (signature look from the reference image)
-    canvas.save();
-    canvas.translate(center.dx + 4.5, center.dy + 7.5);
-    canvas.rotate(liveHandAngleRad);
-    final handShadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: isDark ? 0.55 : 0.20)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.5);
-    canvas.drawRRect(handRRect, handShadowPaint);
-    canvas.restore();
-
-    // 2. Sculpted matte cylindrical baton hand
     canvas.save();
     canvas.translate(center.dx, center.dy);
     canvas.rotate(liveHandAngleRad);
 
-    final bodyGradient = LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: isDark
-          ? const [
-              MagnColors.darkHandEdge,
-              MagnColors.darkHandHighlight,
-              MagnColors.darkHand,
-            ]
-          : const [
-              MagnColors.lightHandHighlight,
-              MagnColors.lightHand,
-              MagnColors.lightHandEdge,
-            ],
-      stops: const [0.0, 0.45, 1.0],
-    );
+    // Sharp flat architectural needle — Deep Mineral Pine in light, Warm Silk Cream in dark
+    final handColor =
+        isDark ? MagnColors.warmSilkCream : MagnColors.inkOak;
+    canvas.drawRRect(handRRect, Paint()..color = handColor);
 
-    final bodyPaint = Paint()
-      ..shader = bodyGradient.createShader(handRRect.outerRect);
-    canvas.drawRRect(handRRect, bodyPaint);
-
-    // Subtle hairline contour so light-on-light matte hand stays razor-crisp
+    // Crisp 1px contrast edge
     final outlinePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8
+      ..strokeWidth = 1.0
       ..color = isDark
-          ? Colors.white.withValues(alpha: 0.25)
-          : const Color(0xFF94A3B8).withValues(alpha: 0.42);
+          ? MagnColors.deepestInk.withValues(alpha: 0.5)
+          : MagnColors.warmSilkCream.withValues(alpha: 0.25);
     canvas.drawRRect(handRRect, outlinePaint);
 
-    // Micro indicator tip accent when dragging or actively sweeping
-    if (isDraggingRim || isRunning) {
-      final tipColor = _currentGradientColors()[2];
-      canvas.drawCircle(
-        Offset(0, -handLength + handWidth * 0.72),
-        handWidth * 0.22,
-        Paint()..color = tipColor.withValues(alpha: 0.90),
+    // Cinnabar Red live needle tip strictly while active/running (< 5% area)
+    if (isRunning || isDraggingRim) {
+      final tipLength = radius * 0.16;
+      final tipRRect = RRect.fromRectAndRadius(
+        Rect.fromLTRB(
+          -handWidth / 2,
+          -handLength,
+          handWidth / 2,
+          -handLength + tipLength,
+        ),
+        const Radius.circular(2.0),
+      );
+      canvas.drawRRect(
+        tipRRect,
+        Paint()..color = MagnColors.cinnabarRed,
       );
     }
 
@@ -485,23 +419,28 @@ class KineticDialPainter extends CustomPainter {
   }
 
   void _drawCenterPivotCap(Canvas canvas, Offset center, double radius) {
-    final capRadius = radius * 0.056;
+    final capRadius = radius * 0.055;
+    final outerColor =
+        isDark ? MagnColors.warmSilkCream : MagnColors.deepMineralPine;
+    canvas.drawCircle(center, capRadius, Paint()..color = outerColor);
+
     canvas.drawCircle(
-      center.translate(1.2, 2.0),
+      center,
       capRadius,
       Paint()
-        ..color = Colors.black.withValues(alpha: isDark ? 0.50 : 0.16)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = isDark ? MagnColors.deepestInk : MagnColors.inkOak,
     );
 
-    final capPaint = Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(-0.35, -0.35),
-        colors: isDark
-            ? const [Color(0xFFFFFFFF), Color(0xFF9AA2B1)]
-            : const [Color(0xFFFFFFFF), Color(0xFFD5D9E1)],
-      ).createShader(Rect.fromCircle(center: center, radius: capRadius));
-    canvas.drawCircle(center, capRadius, capPaint);
+    final innerDotColor = isRunning
+        ? MagnColors.cinnabarRed
+        : (isDark ? MagnColors.deepestInk : MagnColors.warmSilkCream);
+    canvas.drawCircle(
+      center,
+      capRadius * 0.42,
+      Paint()..color = innerDotColor,
+    );
   }
 
   @override
@@ -521,6 +460,8 @@ class KineticDialPainter extends CustomPainter {
         oldDelegate.apertureTitle != apertureTitle ||
         oldDelegate.formattedTime != formattedTime ||
         oldDelegate.digitsOpacity != digitsOpacity ||
-        oldDelegate.accentColor != accentColor;
+        oldDelegate.accentColor != accentColor ||
+        oldDelegate.completedPomodoroRounds != completedPomodoroRounds ||
+        oldDelegate.cyclesBeforeLongBreak != cyclesBeforeLongBreak;
   }
 }

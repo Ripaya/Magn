@@ -14,10 +14,9 @@ import '../widgets/sheets/label_picker_sheet.dart';
 import '../widgets/sheets/options_sheet.dart';
 import '../widgets/sheets/stats_history_sheet.dart';
 
-/// Main single-screen home view for Magn — Kinetic Focus Dial.
-/// Layout:
-/// - Minimal Top Bar: Left colored Label Chip, Right Stats Icon
-/// - Center Stage (~70% viewport): Sculpted 3-Layer Kinetic Dial + Pomodoro round dots
+/// Main single-screen home view for Magn — Minimal Editorial & Clean Webtoon Panel layout:
+/// - Top Editorial Bar: Focus Label panel (with live Cinnabar Red dot only when running) + Stats panel
+/// - Center Stage: 3-Layer Kinetic Dial + modular Pomodoro round cells
 /// - Bottom Control Dock: Options · Play/Pause · Hold-to-Skip/Stop
 class HomeTimerScreen extends ConsumerStatefulWidget {
   const HomeTimerScreen({super.key});
@@ -88,7 +87,6 @@ class _HomeTimerScreenState extends ConsumerState<HomeTimerScreen>
     final timerState = ref.watch(timerEngineProvider);
     final selectedLabel = ref.watch(selectedLabelProvider);
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     // Trigger subtle screen flash alert when enabled for silent study spaces
     if (timerState.screenFlashNonce != _lastFlashNonce) {
@@ -115,29 +113,27 @@ class _HomeTimerScreenState extends ConsumerState<HomeTimerScreen>
 
                 return Column(
                   children: [
-                    // ── MINIMAL TOP BAR ───────────────────────────────────────
+                    // ── TOP EDITORIAL BAR ─────────────────────────────────────
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 12, 18, 4),
+                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Left: Colored Label Chip
-                          GestureDetector(
+                          // Left: Modular Label Panel
+                          InkWell(
                             onTap: _openLabelPicker,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.panelRadius,
+                            ),
                             child: Container(
+                              height: 40,
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 9,
+                                horizontal: 12,
                               ),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? const Color(0xFF15171C)
-                                    : Colors.white.withValues(alpha: 0.82),
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: theme.colorScheme.outline
-                                      .withValues(alpha: isDark ? 0.55 : 0.7),
-                                ),
+                              decoration: AppTheme.panelDecoration(
+                                context,
+                                active: timerState.isRunning,
+                                radius: AppTheme.panelRadius,
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -146,69 +142,85 @@ class _HomeTimerScreenState extends ConsumerState<HomeTimerScreen>
                                     width: 8,
                                     height: 8,
                                     decoration: BoxDecoration(
-                                      color: selectedLabel.color,
-                                      shape: BoxShape.circle,
+                                      color: timerState.isRunning
+                                          ? MagnColors.cinnabarRed
+                                          : selectedLabel.color,
+                                      borderRadius: BorderRadius.circular(2),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 9),
                                   Text(
                                     selectedLabel.name,
                                     style: theme.textTheme.labelLarge?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.1,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                   const SizedBox(width: 4),
                                   Icon(
                                     Icons.keyboard_arrow_down_rounded,
-                                    size: 16,
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.5),
+                                    size: 17,
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ],
                               ),
                             ),
                           ),
 
-                          // Right: Minimal Stats Icon
-                          IconButton(
-                            tooltip: 'Statistics & History',
-                            onPressed: _openStats,
-                            icon: Icon(
-                              Icons.bar_chart_rounded,
-                              size: 24,
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.85),
+                          // Right: Modular Stats Panel Button
+                          Tooltip(
+                            message: 'Statistics & History',
+                            child: InkWell(
+                              onTap: _openStats,
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.panelRadius,
+                              ),
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: AppTheme.panelDecoration(
+                                  context,
+                                  radius: AppTheme.panelRadius,
+                                ),
+                                child: Icon(
+                                  Icons.bar_chart_rounded,
+                                  size: 20,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                    // ── CENTER STAGE (~70% VIEWPORT) ──────────────────────────
+                    // ── CENTER STAGE ──────────────────────────────────────────
                     Expanded(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Centerpiece 3-Layer Kinetic Dial
                           KineticDialWidget(size: dialSize),
 
-                          const SizedBox(height: 22),
+                          const SizedBox(height: 24),
 
-                          // Pomodoro Round Dots or Endless Lap / Benchmark Caption
                           _DialSubCaption(timerState: timerState),
 
-                          // Contextual Phase Transition / Earned Break Prompt
                           if (timerState.isPhaseTransition) ...[
                             const SizedBox(height: 16),
                             _PhaseTransitionBanner(timerState: timerState),
                           ] else if (timerState.lastCompletedMessage != null) ...[
                             const SizedBox(height: 12),
-                            Text(
-                              timerState.lastCompletedMessage!,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: 0.58),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: AppTheme.panelDecoration(
+                                context,
+                                radius: AppTheme.tightRadius,
+                              ),
+                              child: Text(
+                                timerState.lastCompletedMessage!,
+                                style: theme.textTheme.labelMedium,
                               ),
                             ),
                           ],
@@ -218,7 +230,7 @@ class _HomeTimerScreenState extends ConsumerState<HomeTimerScreen>
 
                     // ── BOTTOM CONTROL DOCK ───────────────────────────────────
                     ControlDock(onOpenOptions: _openOptions),
-                    const SizedBox(height: 26),
+                    const SizedBox(height: 28),
                   ],
                 );
               },
@@ -234,8 +246,8 @@ class _HomeTimerScreenState extends ConsumerState<HomeTimerScreen>
                   return const SizedBox.shrink();
                 }
                 return Container(
-                  color: Colors.white.withValues(
-                    alpha: _flashController.value * 0.35,
+                  color: MagnColors.cinnabarRed.withValues(
+                    alpha: _flashController.value * 0.18,
                   ),
                 );
               },
@@ -255,7 +267,8 @@ class _DialSubCaption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurface.withValues(alpha: 0.48);
+    final isDark = theme.brightness == Brightness.dark;
+    final muted = theme.colorScheme.onSurfaceVariant;
 
     if (timerState.mode == FocusMode.pomodoro) {
       final total = timerState.cyclesBeforeLongBreak;
@@ -267,32 +280,32 @@ class _DialSubCaption extends StatelessWidget {
             children: List.generate(total, (index) {
               final filled = index < completed;
               return AnimatedContainer(
-                duration: const Duration(milliseconds: 240),
-                width: filled ? 9 : 7.5,
-                height: filled ? 9 : 7.5,
-                margin: const EdgeInsets.symmetric(horizontal: 5),
+                duration: const Duration(milliseconds: 220),
+                width: 18,
+                height: 6,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(2),
                   color: filled
-                      ? theme.colorScheme.onSurface
-                      : Colors.transparent,
+                      ? MagnColors.deepMineralPine
+                      : theme.colorScheme.surface,
                   border: Border.all(
-                    color: theme.colorScheme.onSurface
-                        .withValues(alpha: filled ? 1.0 : 0.32),
-                    width: 1.5,
+                    color: filled
+                        ? (isDark
+                            ? MagnColors.warmSilkCream.withValues(alpha: 0.45)
+                            : MagnColors.deepMineralPine)
+                        : MagnColors.borderColor(context),
+                    width: 1.0,
                   ),
                 ),
               );
             }),
           ),
           if (timerState.isIdle) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Text(
               'Drag rim to adjust · Tap slot to switch mode',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: muted,
-                letterSpacing: 0.2,
-              ),
+              style: theme.textTheme.labelSmall?.copyWith(color: muted),
             ),
           ],
         ],
@@ -304,14 +317,15 @@ class _DialSubCaption extends StatelessWidget {
         timerState.endlessBenchmarkMs ~/ 1000,
       );
       final text = timerState.hasSurpassedEndlessBenchmark
-          ? 'Passed benchmark ($benchmarkStr)${timerState.endlessLaps > 0 ? ' · Lap ${timerState.endlessLaps + 1}' : ''}'
-          : 'Ghost target · $benchmarkStr';
+          ? 'PASSED BENCHMARK ($benchmarkStr)${timerState.endlessLaps > 0 ? ' · LAP ${timerState.endlessLaps + 1}' : ''}'
+          : 'GHOST TARGET · $benchmarkStr';
       return Text(
         text,
         style: AppTheme.monoStyle(
           fontSize: 12,
+          fontWeight: FontWeight.w600,
           color: timerState.hasSurpassedEndlessBenchmark
-              ? const Color(0xFFD97706)
+              ? MagnColors.cinnabarRed
               : muted,
           letterSpacing: 0.5,
         ),
@@ -322,10 +336,7 @@ class _DialSubCaption extends StatelessWidget {
       timerState.isIdle
           ? 'Drag rim to set focus length'
           : 'Uninterrupted Focus Block',
-      style: theme.textTheme.labelSmall?.copyWith(
-        color: muted,
-        letterSpacing: 0.25,
-      ),
+      style: theme.textTheme.labelSmall?.copyWith(color: muted),
     );
   }
 }
@@ -342,28 +353,34 @@ class _PhaseTransitionBanner extends ConsumerWidget {
         ? 'Take ${timerState.plannedDurationMs ~/ 60000}m Earned Break'
         : 'Start ${timerState.phase.label}';
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        FilledButton.tonal(
-          onPressed: () {
-            HapticFeedback.mediumImpact();
-            ref.read(timerEngineProvider.notifier).start();
-          },
-          child: Text(label),
-        ),
-        const SizedBox(width: 8),
-        TextButton(
-          onPressed: () =>
-              ref.read(timerEngineProvider.notifier).dismissPhaseTransition(),
-          child: Text(
-            'Skip',
-            style: TextStyle(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+      decoration: AppTheme.panelDecoration(
+        context,
+        active: true,
+        radius: AppTheme.panelRadius,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FilledButton(
+            onPressed: () {
+              HapticFeedback.mediumImpact();
+              ref.read(timerEngineProvider.notifier).start();
+            },
+            child: Text(label),
+          ),
+          const SizedBox(width: 6),
+          TextButton(
+            onPressed: () =>
+                ref.read(timerEngineProvider.notifier).dismissPhaseTransition(),
+            child: Text(
+              'Skip',
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

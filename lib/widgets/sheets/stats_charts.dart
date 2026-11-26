@@ -5,7 +5,8 @@ import 'package:intl/intl.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/stats_calculator.dart';
 
-/// Minimalist 7-day bar chart displaying daily focus minutes.
+/// Editorial 7-day bar chart displaying daily focus minutes with crisp bars
+/// and Deep Mineral Pine fill for today's bar.
 class SevenDayBarChart extends StatelessWidget {
   const SevenDayBarChart({
     super.key,
@@ -17,6 +18,7 @@ class SevenDayBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final maxMinutes = buckets.isEmpty
         ? 60.0
         : math.max(
@@ -25,7 +27,7 @@ class SevenDayBarChart extends StatelessWidget {
           );
 
     return SizedBox(
-      height: 136,
+      height: 140,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: buckets.map((bucket) {
@@ -44,8 +46,12 @@ class SevenDayBarChart extends StatelessWidget {
                       '${bucket.totalMinutes.round()}m',
                       style: AppTheme.monoStyle(
                         fontSize: 10,
-                        color: theme.colorScheme.onSurface
-                            .withValues(alpha: 0.55),
+                        fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                        color: isToday
+                            ? (isDark
+                                ? MagnColors.warmSilkCream
+                                : MagnColors.deepMineralPine)
+                            : theme.colorScheme.onSurfaceVariant,
                         letterSpacing: 0,
                       ),
                     ),
@@ -59,10 +65,18 @@ class SevenDayBarChart extends StatelessWidget {
                         width: 22,
                         decoration: BoxDecoration(
                           color: isToday
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(8),
+                              ? MagnColors.deepMineralPine
+                              : theme.scaffoldBackgroundColor,
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(
+                            color: isToday
+                                ? (isDark
+                                    ? MagnColors.warmSilkCream
+                                        .withValues(alpha: 0.45)
+                                    : MagnColors.deepMineralPine)
+                                : MagnColors.borderColor(context),
+                            width: isToday ? 1.5 : 1.0,
+                          ),
                         ),
                       ),
                     ),
@@ -75,7 +89,7 @@ class SevenDayBarChart extends StatelessWidget {
                     fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
                     color: isToday
                         ? theme.colorScheme.onSurface
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        : theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -90,7 +104,7 @@ class SevenDayBarChart extends StatelessWidget {
       a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
-/// Clean ring chart showing time-per-label distribution.
+/// Crisp geometric ring chart showing time-per-label distribution.
 class LabelRingChart extends StatelessWidget {
   const LabelRingChart({
     super.key,
@@ -110,9 +124,7 @@ class LabelRingChart extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 20),
           child: Text(
             'Complete a focus session to see label distribution',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-            ),
+            style: theme.textTheme.bodySmall,
           ),
         ),
       );
@@ -126,8 +138,7 @@ class LabelRingChart extends StatelessWidget {
           child: CustomPaint(
             painter: _RingPainter(
               buckets: buckets,
-              emptyTrackColor:
-                  theme.colorScheme.onSurface.withValues(alpha: 0.08),
+              emptyTrackColor: MagnColors.borderColor(context),
             ),
             child: Center(
               child: Text(
@@ -136,7 +147,7 @@ class LabelRingChart extends StatelessWidget {
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: theme.colorScheme.onSurface,
-                  letterSpacing: 0.3,
+                  letterSpacing: 0.2,
                 ),
               ),
             ),
@@ -153,11 +164,11 @@ class LabelRingChart extends StatelessWidget {
                 child: Row(
                   children: [
                     Container(
-                      width: 10,
-                      height: 10,
+                      width: 9,
+                      height: 9,
                       decoration: BoxDecoration(
                         color: b.label.color,
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -166,6 +177,7 @@ class LabelRingChart extends StatelessWidget {
                         b.label.name,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -174,9 +186,8 @@ class LabelRingChart extends StatelessWidget {
                       '${StatsCalculator.formatDurationCompact(b.totalSeconds)} · $pct%',
                       style: AppTheme.monoStyle(
                         fontSize: 11,
-                        color: theme.colorScheme.onSurface
-                            .withValues(alpha: 0.65),
-                        letterSpacing: 0.2,
+                        color: theme.colorScheme.onSurfaceVariant,
+                        letterSpacing: 0.1,
                       ),
                     ),
                   ],
@@ -203,7 +214,7 @@ class _RingPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (math.min(size.width, size.height) / 2) - 8;
-    const strokeWidth = 11.0;
+    const strokeWidth = 10.0;
 
     canvas.drawCircle(
       center,
@@ -215,7 +226,7 @@ class _RingPainter extends CustomPainter {
     );
 
     double startAngle = -math.pi / 2;
-    const gapRad = 0.06;
+    const gapRad = 0.05;
 
     for (final b in buckets) {
       final rawSweep = b.fraction * 2 * math.pi;
@@ -223,7 +234,7 @@ class _RingPainter extends CustomPainter {
       final paint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round
+        ..strokeCap = StrokeCap.butt
         ..color = b.label.color;
 
       canvas.drawArc(
@@ -239,5 +250,6 @@ class _RingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _RingPainter oldDelegate) =>
-      oldDelegate.buckets != buckets;
+      oldDelegate.buckets != buckets ||
+      oldDelegate.emptyTrackColor != emptyTrackColor;
 }

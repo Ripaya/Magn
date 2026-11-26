@@ -5,8 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_providers.dart';
 
-/// Fast bottom sheet for picking or creating a colored session label without
-/// cluttering the main timer screen.
+/// Modular panel bottom sheet for picking or creating a session label.
 class LabelPickerSheet extends ConsumerStatefulWidget {
   const LabelPickerSheet({super.key});
 
@@ -52,175 +51,248 @@ class _LabelPickerSheetState extends ConsumerState<LabelPickerSheet> {
     final selectedId =
         ref.watch(settingsProvider.select((s) => s.selectedLabelId));
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final headerColor =
+        isDark ? MagnColors.warmSilkCream : MagnColors.deepMineralPine;
 
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          24,
-          12,
-          24,
-          24 + MediaQuery.of(context).viewInsets.bottom,
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppTheme.sheetRadius),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 18),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.outline,
-                  borderRadius: BorderRadius.circular(2),
+        border: Border(
+          top: BorderSide(color: MagnColors.borderColor(context), width: 1),
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            24 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 3,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: MagnColors.borderColor(context),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Focus Label',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () => setState(() => _creatingNew = !_creatingNew),
-                  icon: Icon(
-                    _creatingNew ? Icons.close_rounded : Icons.add_rounded,
-                    size: 18,
-                  ),
-                  label: Text(_creatingNew ? 'Cancel' : 'New Label'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (_creatingNew) ...[
-              TextField(
-                controller: _nameController,
-                autofocus: true,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  hintText: 'e.g., Architecture, Reading, Deep Work',
-                  filled: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                onSubmitted: (_) => _submitNewLabel(),
-              ),
-              const SizedBox(height: 14),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: MagnColors.labelPalette.map((colorVal) {
-                      final selected = _selectedColorValue == colorVal;
-                      return GestureDetector(
-                        onTap: () =>
-                            setState(() => _selectedColorValue = colorVal),
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          margin: const EdgeInsets.only(right: 10),
-                          decoration: BoxDecoration(
-                            color: Color(colorVal),
-                            shape: BoxShape.circle,
-                            border: selected
-                                ? Border.all(
-                                    color: theme.colorScheme.onSurface,
-                                    width: 2.5,
-                                  )
-                                : null,
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                  Text(
+                    'Focus Label',
+                    style: AppTheme.headingStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: headerColor,
+                    ),
                   ),
-                  FilledButton(
-                    onPressed: _submitNewLabel,
-                    child: const Text('Save'),
+                  TextButton.icon(
+                    onPressed: () =>
+                        setState(() => _creatingNew = !_creatingNew),
+                    icon: Icon(
+                      _creatingNew ? Icons.close_rounded : Icons.add_rounded,
+                      size: 18,
+                    ),
+                    label: Text(_creatingNew ? 'Cancel' : 'New Label'),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 8),
-            ],
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 280),
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: labels.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 4),
-                itemBuilder: (context, index) {
-                  final label = labels[index];
-                  final isSelected = label.id == selectedId;
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 2,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    selected: isSelected,
-                    selectedTileColor:
-                        theme.colorScheme.onSurface.withValues(alpha: 0.06),
-                    leading: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: label.color,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    title: Text(
-                      label.name,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.w400,
-                      ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isSelected)
-                          Icon(
-                            Icons.check_rounded,
-                            size: 20,
-                            color: theme.colorScheme.onSurface,
+              const SizedBox(height: 12),
+              if (_creatingNew) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: AppTheme.panelDecoration(
+                    context,
+                    active: true,
+                    radius: AppTheme.panelRadius,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _nameController,
+                        autofocus: true,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          hintText: 'e.g., Architecture, Reading, Deep Work',
+                          filled: true,
+                          fillColor: theme.scaffoldBackgroundColor,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
                           ),
-                        if (label.id != 'label_general' && !isSelected)
-                          IconButton(
-                            icon: Icon(
-                              Icons.delete_outline_rounded,
-                              size: 18,
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.45),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.tightRadius,
                             ),
-                            onPressed: () {
-                              ref
-                                  .read(labelsProvider.notifier)
-                                  .archiveLabel(label.id);
-                            },
+                            borderSide: BorderSide(
+                              color: MagnColors.borderColor(context),
+                            ),
                           ),
-                      ],
-                    ),
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      ref.read(settingsProvider.notifier).update(
-                            (s) => s.copyWith(selectedLabelId: label.id),
-                          );
-                      Navigator.of(context).pop();
-                    },
-                  );
-                },
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.tightRadius,
+                            ),
+                            borderSide: BorderSide(
+                              color: MagnColors.borderColor(
+                                context,
+                                active: true,
+                              ),
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                        onSubmitted: (_) => _submitNewLabel(),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: MagnColors.labelPalette.map((colorVal) {
+                              final selected = _selectedColorValue == colorVal;
+                              return GestureDetector(
+                                onTap: () => setState(
+                                  () => _selectedColorValue = colorVal,
+                                ),
+                                child: Container(
+                                  width: 26,
+                                  height: 26,
+                                  margin: const EdgeInsets.only(right: 8),
+                                  decoration: BoxDecoration(
+                                    color: Color(colorVal),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: selected
+                                          ? theme.colorScheme.onSurface
+                                          : MagnColors.borderColor(context),
+                                      width: selected ? 2.0 : 1.0,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          FilledButton(
+                            onPressed: _submitNewLabel,
+                            child: const Text('Save'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+              ],
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: labels.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final label = labels[index];
+                    final isSelected = label.id == selectedId;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(AppTheme.panelRadius),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        ref.read(settingsProvider.notifier).update(
+                              (s) => s.copyWith(selectedLabelId: label.id),
+                            );
+                        Navigator.of(context).pop();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 11,
+                        ),
+                        decoration: AppTheme.panelDecoration(
+                          context,
+                          active: isSelected,
+                          radius: AppTheme.panelRadius,
+                          color: isSelected
+                              ? MagnColors.deepMineralPine
+                              : theme.colorScheme.surface,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: label.color,
+                                borderRadius: BorderRadius.circular(3),
+                                border: isSelected
+                                    ? Border.all(
+                                        color: MagnColors.warmSilkCream
+                                            .withValues(alpha: 0.7),
+                                        width: 1,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                label.name,
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  fontWeight: isSelected
+                                      ? FontWeight.w500
+                                      : FontWeight.w400,
+                                  color: isSelected
+                                      ? MagnColors.warmSilkCream
+                                      : theme.colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                            if (isSelected)
+                              const Icon(
+                                Icons.check_rounded,
+                                size: 19,
+                                color: MagnColors.warmSilkCream,
+                              )
+                            else if (label.id != 'label_general')
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 28,
+                                  minHeight: 28,
+                                ),
+                                icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 18,
+                                  color: MagnColors.cinnabarRed,
+                                ),
+                                onPressed: () {
+                                  ref
+                                      .read(labelsProvider.notifier)
+                                      .archiveLabel(label.id);
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

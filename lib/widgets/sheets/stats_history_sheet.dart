@@ -20,8 +20,8 @@ Future<void> showManualSessionDialog(
   FocusSession? existing,
 }) async {
   final labels = ref.read(labelsProvider);
-  final defaultLabelId = existing?.labelId ??
-      ref.read(settingsProvider).selectedLabelId;
+  final defaultLabelId =
+      existing?.labelId ?? ref.read(settingsProvider).selectedLabelId;
 
   FocusMode selectedMode = existing?.mode ?? FocusMode.focus;
   String selectedLabelId = defaultLabelId;
@@ -49,7 +49,8 @@ Future<void> showManualSessionDialog(
                       return ChoiceChip(
                         label: Text(m.displayLabel),
                         selected: selectedMode == m,
-                        onSelected: (_) => setModalState(() => selectedMode = m),
+                        onSelected: (_) =>
+                            setModalState(() => selectedMode = m),
                       );
                     }).toList(),
                   ),
@@ -72,7 +73,7 @@ Future<void> showManualSessionDialog(
                                   margin: const EdgeInsets.only(right: 8),
                                   decoration: BoxDecoration(
                                     color: l.color,
-                                    shape: BoxShape.circle,
+                                    borderRadius: BorderRadius.circular(3),
                                   ),
                                 ),
                                 Text(l.name),
@@ -168,10 +169,10 @@ Future<void> showManualSessionDialog(
   notesController.dispose();
 }
 
-/// Lightweight Statistics & History bottom sheet:
-/// - Summary Strip (Today / Daily Streak / Completed Sessions)
-/// - 7-day Bar Chart & Time-per-Label Ring Chart (with optional Detailed View toggle)
-/// - Reverse-chronological Session Log with swipe-to-delete and tap-to-edit
+/// Statistics & History bottom sheet arranged as Minimal Editorial & Webtoon Panels:
+/// - Modular Summary Strip (Today / Daily Streak / Completed Sessions)
+/// - 7-day Bar Chart & Time-per-Label Ring Chart panels
+/// - Reverse-chronological Session Log panels with Cinnabar Red swipe-to-delete
 class StatsHistorySheet extends ConsumerStatefulWidget {
   const StatsHistorySheet({super.key});
 
@@ -189,301 +190,308 @@ class _StatsHistorySheetState extends ConsumerState<StatsHistorySheet> {
     final labels = ref.watch(labelsProvider);
     final labelMap = <String, SessionLabel>{for (final l in labels) l.id: l};
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final keyHeaderColor =
+        isDark ? MagnColors.warmSilkCream : MagnColors.deepMineralPine;
 
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.82,
-      minChildSize: 0.50,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) {
-        return Column(
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.outline,
-                borderRadius: BorderRadius.circular(2),
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppTheme.sheetRadius),
+        ),
+        border: Border(
+          top: BorderSide(color: MagnColors.borderColor(context), width: 1),
+        ),
+      ),
+      child: DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.82,
+        minChildSize: 0.50,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) {
+          return Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 36,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: MagnColors.borderColor(context),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 14, 14, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Focus Insights',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        tooltip: 'Add Manual Session',
-                        onPressed: () => showManualSessionDialog(context, ref),
-                        icon: const Icon(Icons.add_rounded),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                controller: scrollController,
-                padding: const EdgeInsets.fromLTRB(20, 6, 20, 32),
-                children: [
-                  // ── SUMMARY STRIP ───────────────────────────────────────────
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _MetricTile(
-                          label: 'TODAY',
-                          value: StatsCalculator.formatDurationCompact(
-                            stats.todayFocusSeconds,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _MetricTile(
-                          label: 'STREAK',
-                          value: '${stats.currentStreakDays}d',
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _MetricTile(
-                          label: 'SESSIONS',
-                          value: '${stats.totalCompletedSessions}',
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // ── 7-DAY BAR CHART ─────────────────────────────────────────
-                  _ChartCard(
-                    title: 'LAST 7 DAYS',
-                    trailing: TextButton(
-                      onPressed: () => setState(
-                        () => _showDetailedMetrics = !_showDetailedMetrics,
-                      ),
-                      child: Text(
-                        _showDetailedMetrics ? 'Compact' : 'Detailed View',
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 14, 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Focus Insights',
+                      style: AppTheme.headingStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w700,
+                        color: keyHeaderColor,
                       ),
                     ),
-                    child: Column(
+                    Row(
                       children: [
-                        SevenDayBarChart(buckets: stats.last7Days),
-                        if (_showDetailedMetrics) ...[
-                          const Divider(height: 24),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _InlineDetail(
-                                label: 'All-Time Total',
-                                value: StatsCalculator.formatDurationCompact(
-                                  stats.totalAllTimeSeconds,
-                                ),
-                              ),
-                              _InlineDetail(
-                                label: 'Avg Session',
-                                value: StatsCalculator.formatDurationCompact(
-                                  stats.averageSessionSeconds,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                        IconButton(
+                          tooltip: 'Add Manual Session',
+                          onPressed: () => showManualSessionDialog(context, ref),
+                          icon: const Icon(Icons.add_rounded),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
                       ],
                     ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // ── TIME PER LABEL RING CHART ───────────────────────────────
-                  _ChartCard(
-                    title: 'TIME BY LABEL',
-                    child: LabelRingChart(
-                      buckets: stats.labelBreakdown,
-                      totalSeconds: stats.totalAllTimeSeconds,
-                    ),
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  // ── SESSION LOG ─────────────────────────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'SESSION LOG',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          letterSpacing: 1.5,
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.55),
-                        ),
-                      ),
-                      Text(
-                        'Swipe to delete · Tap to edit',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.45),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  if (sessions.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 34),
-                      alignment: Alignment.center,
-                      child: Text(
-                        'No sessions recorded yet.\nStart the dial to log your first focus block.',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.52),
-                        ),
-                      ),
-                    )
-                  else
-                    ...sessions.map((session) {
-                      final label = labelMap[session.labelId];
-                      final dateStr =
-                          DateFormat('MMM d · HH:mm').format(session.startedAt);
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Dismissible(
-                          key: ValueKey(session.id),
-                          direction: DismissDirection.endToStart,
-                          background: Container(
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 20),
-                            decoration: BoxDecoration(
-                              color: Colors.redAccent.withValues(alpha: 0.85),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Icon(
-                              Icons.delete_outline_rounded,
-                              color: Colors.white,
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 32),
+                  children: [
+                    // ── SUMMARY STRIP ─────────────────────────────────────────
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _MetricTile(
+                            label: 'TODAY',
+                            value: StatsCalculator.formatDurationCompact(
+                              stats.todayFocusSeconds,
                             ),
                           ),
-                          onDismissed: (_) {
-                            ref
-                                .read(sessionsProvider.notifier)
-                                .deleteSession(session.id);
-                          },
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () => showManualSessionDialog(
-                              context,
-                              ref,
-                              existing: session,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _MetricTile(
+                            label: 'STREAK',
+                            value: '${stats.currentStreakDays}d',
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _MetricTile(
+                            label: 'SESSIONS',
+                            value: '${stats.totalCompletedSessions}',
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ── 7-DAY BAR CHART ───────────────────────────────────────
+                    _ChartCard(
+                      title: 'LAST 7 DAYS',
+                      trailing: TextButton(
+                        onPressed: () => setState(
+                          () => _showDetailedMetrics = !_showDetailedMetrics,
+                        ),
+                        child: Text(
+                          _showDetailedMetrics ? 'Compact' : 'Detailed View',
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          SevenDayBarChart(buckets: stats.last7Days),
+                          if (_showDetailedMetrics) ...[
+                            const Divider(height: 24),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _InlineDetail(
+                                  label: 'All-Time Total',
+                                  value: StatsCalculator.formatDurationCompact(
+                                    stats.totalAllTimeSeconds,
+                                  ),
+                                ),
+                                _InlineDetail(
+                                  label: 'Avg Session',
+                                  value: StatsCalculator.formatDurationCompact(
+                                    stats.averageSessionSeconds,
+                                  ),
+                                ),
+                              ],
                             ),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 13,
-                              ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ── TIME PER LABEL RING CHART ─────────────────────────────
+                    _ChartCard(
+                      title: 'TIME BY LABEL',
+                      child: LabelRingChart(
+                        buckets: stats.labelBreakdown,
+                        totalSeconds: stats.totalAllTimeSeconds,
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // ── SESSION LOG ───────────────────────────────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'SESSION LOG',
+                          style: AppTheme.headingStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: keyHeaderColor,
+                          ).copyWith(letterSpacing: 1.4),
+                        ),
+                        Text(
+                          'Swipe to delete · Tap to edit',
+                          style: theme.textTheme.labelSmall,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    if (sessions.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 30,
+                          horizontal: 16,
+                        ),
+                        decoration: AppTheme.panelDecoration(
+                          context,
+                          radius: AppTheme.panelRadius,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'No sessions recorded yet.\nStart the dial to log your first focus block.',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      )
+                    else
+                      ...sessions.map((session) {
+                        final label = labelMap[session.labelId];
+                        final dateStr = DateFormat('MMM d · HH:mm')
+                            .format(session.startedAt);
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Dismissible(
+                            key: ValueKey(session.id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: 0.04),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: theme.colorScheme.outline
-                                      .withValues(alpha: 0.45),
+                                color: MagnColors.cinnabarRed,
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.panelRadius,
                                 ),
                               ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 10,
-                                    height: 10,
-                                    decoration: BoxDecoration(
-                                      color: label?.color ??
-                                          const Color(0xFF475569),
-                                      shape: BoxShape.circle,
+                              child: const Icon(
+                                Icons.delete_outline_rounded,
+                                color: MagnColors.warmSilkCream,
+                              ),
+                            ),
+                            onDismissed: (_) {
+                              ref
+                                  .read(sessionsProvider.notifier)
+                                  .deleteSession(session.id);
+                            },
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.panelRadius,
+                              ),
+                              onTap: () => showManualSessionDialog(
+                                context,
+                                ref,
+                                existing: session,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                                decoration: AppTheme.panelDecoration(
+                                  context,
+                                  radius: AppTheme.panelRadius,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 9,
+                                      height: 9,
+                                      decoration: BoxDecoration(
+                                        color: label?.color ??
+                                            MagnColors.deepMineralPine,
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Text(
-                                              label?.name ?? 'General',
-                                              style: theme.textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                fontWeight: FontWeight.w600,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Text(
+                                                label?.name ?? 'General',
+                                                style: theme.textTheme.bodyMedium
+                                                    ?.copyWith(
+                                                  fontWeight: FontWeight.w500,
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              session.mode.displayLabel,
-                                              style: theme.textTheme.labelSmall
-                                                  ?.copyWith(
-                                                letterSpacing: 1.0,
-                                                color: theme
-                                                    .colorScheme.onSurface
-                                                    .withValues(alpha: 0.5),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                session.mode.displayLabel,
+                                                style: theme.textTheme.labelSmall
+                                                    ?.copyWith(
+                                                  letterSpacing: 0.9,
+                                                ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          session.notes.isNotEmpty
-                                              ? '$dateStr · ${session.notes}'
-                                              : dateStr,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                            color: theme.colorScheme.onSurface
-                                                .withValues(alpha: 0.55),
+                                            ],
                                           ),
-                                        ),
-                                      ],
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            session.notes.isNotEmpty
+                                                ? '$dateStr · ${session.notes}'
+                                                : dateStr,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: theme.textTheme.bodySmall,
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    StatsCalculator.formatDurationCompact(
-                                      session.actualSec,
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      StatsCalculator.formatDurationCompact(
+                                        session.actualSec,
+                                      ),
+                                      style: AppTheme.monoStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: theme.colorScheme.onSurface,
+                                      ),
                                     ),
-                                    style: AppTheme.monoStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: theme.colorScheme.onSurface,
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    }),
-                ],
+                        );
+                      }),
+                  ],
+                ),
               ),
-            ),
-          ],
-        );
-      },
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -500,25 +508,25 @@ class _MetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.045),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.5),
-        ),
+      decoration: AppTheme.panelDecoration(
+        context,
+        radius: AppTheme.panelRadius,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              letterSpacing: 1.3,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.52),
-            ),
+            style: AppTheme.headingStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: isDark
+                  ? MagnColors.darkInkSecondary
+                  : MagnColors.deepMineralPine,
+            ).copyWith(letterSpacing: 1.2),
           ),
           const SizedBox(height: 6),
           Text(
@@ -527,7 +535,7 @@ class _MetricTile extends StatelessWidget {
               fontSize: 19,
               fontWeight: FontWeight.w700,
               color: theme.colorScheme.onSurface,
-              letterSpacing: 0.3,
+              letterSpacing: 0.2,
             ),
           ),
         ],
@@ -550,14 +558,12 @@ class _ChartCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.035),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.5),
-        ),
+      decoration: AppTheme.panelDecoration(
+        context,
+        radius: AppTheme.panelRadius,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -567,11 +573,13 @@ class _ChartCard extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  letterSpacing: 1.4,
+                style: AppTheme.headingStyle(
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-                ),
+                  color: isDark
+                      ? MagnColors.warmSilkCream
+                      : MagnColors.deepMineralPine,
+                ).copyWith(letterSpacing: 1.3),
               ),
               if (trailing != null) trailing!,
             ],
@@ -600,9 +608,7 @@ class _InlineDetail extends StatelessWidget {
       children: [
         Text(
           label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-          ),
+          style: theme.textTheme.labelSmall,
         ),
         const SizedBox(height: 3),
         Text(
